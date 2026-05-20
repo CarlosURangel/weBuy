@@ -9,12 +9,14 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import GaleriaInteractiva from "@/components/producto/GaleriaInteractiva"; 
 import { JoinOrderButton } from "@/components/producto/JoinOrderButton";
+import { FinalizarVentaButton, CancelarVentaButton } from "@/components/producto/VentaActions";
 import { ReputationBadge } from "@/components/ReputationBadge";
 import { RequestsList } from "@/components/RequestsList";
 import { CoordinationFeed } from "@/components/CoordinationFeed";
 import { CoordinationSpaceForm } from "@/components/CoordinationSpaceForm";
 import { Header } from "@/components/ui/Header";
-import { ShoppingCart, ChevronRight, MapPin, ExternalLink, CalendarDays, Users, MessageCircle, ArrowRight, Lock } from "lucide-react";
+import { WriteReviewButton } from "@/components/ui/WriteReviewButton";
+import { ShoppingCart, ChevronRight, MapPin, ExternalLink, CalendarDays, Users, MessageCircle, ArrowRight, Lock, CheckCircle, XCircle } from "lucide-react";
 
 export default async function DetalleProductoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -36,19 +38,23 @@ export default async function DetalleProductoPage({ params }: { params: Promise<
   let yaUnido = false;
   let estadoParticipacion: string | undefined;
   let esAprobado = false;
+  let cantidadCreador: number | undefined;
 
-  if (session?.user?.id && !esCreador) {
+  if (session?.user?.id) {
     const miParticipacion = await prisma.participacion.findFirst({
       where: {
         usuario_id: parseInt(session.user.id),
         publicacion_id: id_publicacion,
       },
-      select: { estado: true },
+      select: { estado: true, cantidad: true },
     });
     if (miParticipacion) {
       yaUnido = true;
       estadoParticipacion = miParticipacion.estado;
       esAprobado = miParticipacion.estado === "APPROVED";
+      if (esCreador) {
+        cantidadCreador = miParticipacion.cantidad;
+      }
     }
   }
 
@@ -63,9 +69,36 @@ export default async function DetalleProductoPage({ params }: { params: Promise<
     }
   }
 
-  const whatsappLink = producto.creador.telefono 
-    ? `https://wa.me/${producto.creador.telefono.replace(/\D/g, '')}?text=Hola, me interesa unirme a la compra grupal de ${producto.titulo}`
-    : null;
+  // Approved participants for rating UI
+  const participantesAprobados = producto.participaciones.filter(
+    (p: any) => p.estado === "APPROVED"
+  );
+
+  // Check if current user (participant) already reviewed the creator
+  let yaResenioCreador = false;
+  if (session?.user?.id && !esCreador && esAprobado) {
+    const reviewExistente = await prisma.review.findFirst({
+      where: {
+        resena_de_id: parseInt(session.user.id),
+        resena_a_id: producto.creador_id,
+        publicacion_id: id_publicacion,
+      },
+    });
+    yaResenioCreador = !!reviewExistente;
+  }
+
+  // Check which participants the creator has already reviewed
+  const participantesYaResenados = new Set<number>();
+  if (esCreador && producto.estado === "COMPLETADA") {
+    const reviewsCreador = await prisma.review.findMany({
+      where: {
+        resena_de_id: producto.creador_id,
+        publicacion_id: id_publicacion,
+      },
+      select: { resena_a_id: true },
+    });
+    reviewsCreador.forEach((r) => participantesYaResenados.add(r.resena_a_id));
+  }
 
   // Get coordination posts if user is approved or is creator
   let postsCoordinacion: any[] = [];
@@ -155,22 +188,57 @@ export default async function DetalleProductoPage({ params }: { params: Promise<
               )}
             </div>
 
-            {/* Botones de Acción */}
+                {/* Botones de Acción */}
             <div className="flex flex-col gap-4">
               
-              {producto.estado === "META_ALCANZADA" ? (
+              {producto.estado === "CANCELADA" ? (
+                <div className="bg-red-50 border-2 border-red-200 rounded-xl p-6 text-center">
+                  <XCircle className="w-10 h-10 text-red-400 mx-auto mb-2" />
+                  <h3 className="text-xl font-bold text-red-700 mb-2">Venta Cancelada</h3>
+                  <p className="text-red-600 font-medium">Esta compra grupal ha sido cancelada.</p>
+                </div>
+              ) : producto.estado === "COMPLETADA" ? (
+                <div className="bg-green-50 border-2 border-green-300 rounded-xl p-6 text-center">
+                  <CheckCircle className="w-10 h-10 text-green-500 mx-auto mb-2" />
+                  <h3 className="text-xl font-bold text-green-700 mb-2">Venta Completada</h3>
+                  <p className="text-green-600 font-medium">La compra grupal se ha finalizado exitosamente.</p>
+                  {!esCreador && esAprobado && !yaResenioCreador && (
+                    <div className="mt-4">
+                      <WriteReviewButton
+                        usuarioId={producto.creador_id}
+                        usuarioNombre={producto.creador.nombre}
+                        publicacionId={id_publicacion}
+                      />
+                    </div>
+                  )}
+                </div>
+              ) : producto.estado === "META_ALCANZADA" ? (
                 <div className="bg-green-50 border-2 border-green-200 rounded-xl p-6 text-center">
                   <h3 className="text-xl font-bold text-green-700 mb-2">Meta Alcanzada</h3>
                   <p className="text-green-600 font-medium">La compra grupal se ha completado. Ahora puedes coordinar la entrega y pago.</p>
+                  {esCreador && (
+                    <div className="mt-4 flex flex-col gap-2">
+                      <FinalizarVentaButton publicacionId={id_publicacion} />
+                      <CancelarVentaButton publicacionId={id_publicacion} />
+                    </div>
+                  )}
                 </div>
               ) : (
-                <JoinOrderButton
-                  publicacionId={id_publicacion}
-                  esCreador={esCreador}
-                  yaUnido={yaUnido}
-                  estadoParticipacion={estadoParticipacion}
-                  unidadesFaltantes={unidadesFaltantes}
-                />
+                <div>
+                  <JoinOrderButton
+                    publicacionId={id_publicacion}
+                    esCreador={esCreador}
+                    yaUnido={yaUnido}
+                    estadoParticipacion={estadoParticipacion}
+                    unidadesFaltantes={unidadesFaltantes}
+                    cantidadCreador={cantidadCreador}
+                  />
+                  {esCreador && (
+                    <div className="mt-2">
+                      <CancelarVentaButton publicacionId={id_publicacion} />
+                    </div>
+                  )}
+                </div>
               )}
 
               {esCreador && solicitudesPendientes.length > 0 && (
@@ -182,17 +250,6 @@ export default async function DetalleProductoPage({ params }: { params: Promise<
                 </div>
               )}
               
-              {whatsappLink && (
-                <a 
-                  href={whatsappLink} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="w-full bg-[#25D366] hover:bg-[#20BD5A] text-white font-bold py-4 px-6 rounded-full transition-all text-lg shadow-md flex items-center justify-center gap-3"
-                >
-                  <MessageCircle className="w-5 h-5" />
-                  Contactar al creador por WhatsApp
-                </a>
-              )}
             </div>
 
             {/* Sección de Participantes */}
@@ -213,7 +270,20 @@ export default async function DetalleProductoPage({ params }: { params: Promise<
                           {esCreador ? participacion.usuario.nombre : `Participante ${idx + 1}`}
                         </span>
                       </div>
-                      <span className="font-bold text-[#A855F7]">{participacion.cantidad} uds</span>
+                      <div className="flex items-center gap-3">
+                        {esCreador && producto.estado === "COMPLETADA" && participacion.estado === "APPROVED" && (
+                          participantesYaResenados.has(participacion.usuario_id) ? (
+                            <span className="text-xs text-green-600 font-medium">Calificado</span>
+                          ) : (
+                            <WriteReviewButton
+                              usuarioId={participacion.usuario_id}
+                              usuarioNombre={participacion.usuario.nombre}
+                              publicacionId={id_publicacion}
+                            />
+                          )
+                        )}
+                        <span className="font-bold text-[#A855F7]">{participacion.cantidad} uds</span>
+                      </div>
                     </div>
                   ))}
                 </div>

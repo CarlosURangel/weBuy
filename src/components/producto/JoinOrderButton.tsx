@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { solicitarUnirse } from "@/app/actions/participaciones";
+import { editarCantidadCreador } from "@/app/actions/publicaciones";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -12,6 +14,7 @@ interface JoinOrderButtonProps {
   yaUnido: boolean;
   estadoParticipacion?: string;
   unidadesFaltantes?: number;
+  cantidadCreador?: number;
 }
 
 export function JoinOrderButton({
@@ -20,14 +23,60 @@ export function JoinOrderButton({
   yaUnido,
   estadoParticipacion,
   unidadesFaltantes = 1,
+  cantidadCreador,
 }: JoinOrderButtonProps) {
-  const [cantidad, setCantidad] = useState("1");
+  const [cantidad, setCantidad] = useState(cantidadCreador?.toString() || "1");
   const [loading, setLoading] = useState(false);
+  const [editando, setEditando] = useState(false);
+  const router = useRouter();
 
   if (esCreador) {
+    const handleEditSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      const nuevaCantidad = parseInt(cantidad);
+      if (isNaN(nuevaCantidad) || nuevaCantidad < 1) {
+        toast.error("La cantidad debe ser al menos 1");
+        return;
+      }
+      setLoading(true);
+      const result = await editarCantidadCreador(publicacionId, nuevaCantidad);
+      if (result.success) {
+        toast.success("Cantidad actualizada");
+        setEditando(false);
+        router.refresh();
+      } else {
+        toast.error(result.error || "Error al actualizar");
+      }
+      setLoading(false);
+    };
+
     return (
-      <div className="px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
-        Tú eres el creador de esta compra
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+        <div className="text-sm text-blue-700 font-medium mb-2">
+          Tú eres el creador — Has aportado <span className="font-bold">{cantidadCreador}</span> unidades
+        </div>
+        {editando ? (
+          <form onSubmit={handleEditSubmit} className="flex gap-2">
+            <Input
+              type="number"
+              min="1"
+              value={cantidad}
+              onChange={(e) => setCantidad(e.target.value)}
+              className="w-24"
+              disabled={loading}
+            />
+            <Button type="submit" size="sm" disabled={loading}>
+              {loading ? "Guardando..." : "Guardar"}
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => { setEditando(false); setCantidad(cantidadCreador?.toString() || "1"); }}>
+              Cancelar
+            </Button>
+          </form>
+        ) : (
+          <Button size="sm" variant="accent" onClick={() => setEditando(true)} className="hover:bg-amber-100 hover:text-gray-900">
+            Editar mis unidades
+          </Button>
+        )}
       </div>
     );
   }

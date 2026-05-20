@@ -14,6 +14,7 @@ const PublicacionSchema = z.object({
   precio_unitario: z.coerce.number().positive("El precio debe ser mayor a 0"),
   precio_mayoreo: z.coerce.number().positive("El precio de mayoreo debe ser mayor a 0"),
   meta_unidades: z.coerce.number().int().min(2, "La meta mínima son 2 unidades"),
+  cantidad_creador: z.coerce.number().int().min(1, "Debes comprar al menos 1 unidad"),
   fecha_limite: z.string().refine((date) => new Date(date) > new Date(), {
     message: "La fecha límite debe ser en el futuro",
   }),
@@ -32,12 +33,27 @@ export async function crearPublicacion(formData: FormData) {
 
   try {
     const data = validation.data;
-    await prisma.publicacion.create({
+    const creadorId = parseInt(session.user.id);
+
+    const publicacion = await prisma.publicacion.create({
       data: {
-        ...data,
+        titulo: data.titulo,
+        descripcion: data.descripcion,
+        url_origen: data.url_origen,
+        imagen_url: data.imagen_url,
+        precio_unitario: data.precio_unitario,
+        precio_mayoreo: data.precio_mayoreo,
+        meta_unidades: data.meta_unidades,
         fecha_limite: new Date(data.fecha_limite),
-        creador_id: parseInt(session.user.id),
+        creador_id: creadorId,
         estado: "ACTIVA",
+        participaciones: {
+          create: {
+            usuario_id: creadorId,
+            cantidad: data.cantidad_creador,
+            estado: "APPROVED",
+          },
+        },
       },
     });
 
@@ -48,6 +64,47 @@ export async function crearPublicacion(formData: FormData) {
   }
 }
 
+
+export async function editarCantidadCreador(publicacionId: number, nuevaCantidad: number) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) return { error: "No autorizado" };
+
+  if (nuevaCantidad < 1) return { error: "La cantidad debe ser al menos 1" };
+
+  try {
+    const creadorId = parseInt(session.user.id);
+
+    const publicacion = await prisma.publicacion.findUnique({
+      where: { id_publicacion: publicacionId },
+    });
+
+    if (!publicacion) return { error: "Publicación no encontrada" };
+    if (publicacion.creador_id !== creadorId) return { error: "No eres el creador de esta publicación" };
+    if (publicacion.estado !== "ACTIVA") return { error: "No puedes editar tus unidades en este estado" };
+
+    const participacion = await prisma.participacion.findFirst({
+      where: {
+        usuario_id: creadorId,
+        publicacion_id: publicacionId,
+        estado: "APPROVED",
+      },
+    });
+
+    if (!participacion) return { error: "No se encontró tu participación" };
+
+    await prisma.participacion.update({
+      where: { id_participacion: participacion.id_participacion },
+      data: { cantidad: nuevaCantidad },
+    });
+
+    revalidatePath(`/producto/${publicacionId}`);
+    revalidatePath("/");
+    return { success: true };
+  } catch (error) {
+    console.error("Error al editar cantidad:", error);
+    return { error: "No se pudo actualizar la cantidad" };
+  }
+}
 
 export async function borrarPublicacion(id_publicacion : number) {
   const session = await getServerSession(authOptions);
@@ -131,6 +188,84 @@ export async function obtenerPublicacionPorId(id: number) {
   }
 }
 
+
+export async function finalizarVenta(publicacionId: number) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) return { error: "No autorizado" };
+
+  try {
+    const publicacion = await prisma.publicacion.findUnique({
+      where: { id_publicacion: publicacionId },
+      include: {
+        participaciones: {
+          where: { estado: "APPROVED" },
+          select: { usuario_id: true },
+        },
+      },
+    });
+
+    if (!publicacion) return { error: "Publicación no encontrada" };
+    if (publicacion.creador_id !== parseInt(session.user.id)) return { error: "Solo el creador puede finalizar la venta" };
+    if (publicacion.estado !== "META_ALCANZADA") return { error: "La venta debe haber alcanzado la meta" };
+
+    await prisma.$transaction(async (tx) => {
+      await tx.publicacion.update({
+        where: { id_publicacion: publicacionId },
+        data: { estado: "COMPLETADA" },
+      });
+
+      await tx.usuario.update({
+        where: { id_usuario: publicacion.creador_id },
+        data: { compras_completadas: { increment: 1 } },
+      });
+
+      for (const p of publicacion.participaciones) {
+        await tx.usuario.update({
+          where: { id_usuario: p.usuario_id },
+          data: { compras_completadas: { increment: 1 } },
+        });
+      }
+    });
+
+    revalidatePath(`/producto/${publicacionId}`);
+    revalidatePath("/");
+    return { success: true };
+  } catch (error) {
+    console.error("Error al finalizar venta:", error);
+    return { error: "No se pudo finalizar la venta" };
+  }
+}
+
+export async function cancelarPublicacion(publicacionId: number) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) return { error: "No autorizado" };
+
+  try {
+    const publicacion = await prisma.publicacion.findUnique({
+      where: { id_publicacion: publicacionId },
+    });
+
+    if (!publicacion) return { error: "Publicación no encontrada" };
+    if (publicacion.creador_id !== parseInt(session.user.id) && session.user.rol !== "ADMINISTRADOR") {
+      return { error: "No tienes permiso para cancelar esta publicación" };
+    }
+    if (publicacion.estado === "COMPLETADA" || publicacion.estado === "CANCELADA") {
+      return { error: "La publicación ya está finalizada" };
+    }
+
+    await prisma.publicacion.update({
+      where: { id_publicacion: publicacionId },
+      data: { estado: "CANCELADA" },
+    });
+
+    revalidatePath(`/producto/${publicacionId}`);
+    revalidatePath("/");
+    return { success: true };
+  } catch (error) {
+    console.error("Error al cancelar publicación:", error);
+    return { error: "No se pudo cancelar la publicación" };
+  }
+}
 
 export async function unirseCompraGrupal(id_publicacion: number, cantidad: number) {
   const session = await getServerSession(authOptions);

@@ -134,7 +134,7 @@ export default function CrearPublicacionPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="grid gap-2">
               <Label htmlFor="meta_unidades">Meta de unidades totales</Label>
               <Input
@@ -146,6 +146,19 @@ export default function CrearPublicacionPage() {
                 disabled={isPending}
               />
               {errors.meta_unidades && <span className="text-xs text-destructive font-medium">{errors.meta_unidades[0]}</span>}
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="cantidad_creador">Tus unidades</Label>
+              <Input
+                id="cantidad_creador"
+                name="cantidad_creador"
+                type="number"
+                min="1"
+                placeholder="Ej. 5"
+                className={errors.cantidad_creador ? "border-destructive" : ""}
+                disabled={isPending}
+              />
+              {errors.cantidad_creador && <span className="text-xs text-destructive font-medium">{errors.cantidad_creador[0]}</span>}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="fecha_limite">Fecha límite para unirse</Label>
