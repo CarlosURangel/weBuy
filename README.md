@@ -28,7 +28,7 @@ Plataforma web para organizar compras grupales. Los usuarios crean publicaciones
 
 1. Clonar el repositorio e instalar dependencias:
 ```
-git clone <repo-url>
+git clone https://github.com/CarlosURangel/weBuy.git
 cd webuy
 npm install
 ```
