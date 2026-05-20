@@ -1,0 +1,162 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+
+model Usuario {
+  id_usuario           Int      @id @default(autoincrement())
+  nombre               String   @db.VarChar(100)
+  correo               String   @unique @db.VarChar(100)
+  contrasena           String   @db.VarChar(255)
+  telefono             String   @db.VarChar(20)
+  localidad            String   @db.VarChar(100)
+  rol                  RolUsuario @default(COMPRADOR)
+  penalizado_hasta     DateTime? 
+  
+  // Reputación
+  calificacion_promedio Decimal @default(0) @db.Decimal(3,2)
+  compras_completadas   Int @default(0)
+  
+  publicaciones        Publicacion[]
+  participaciones      Participacion[]
+  mensajes             Mensaje[]
+  posts_coordinacion   CoordinationPost[] @relation("usuario_posts")
+  comentarios_coordinacion CoordinationComment[] @relation("usuario_comentarios")
+  resenas_dadas        Review[] @relation("resenas_dadas")
+  resenas_recibidas    Review[] @relation("resenas_recibidas")
+  reportes_hechos      Report[] @relation("reportes_hechos")
+  reportes_recibidos   Report[] @relation("reportes_recibidos")
+}
+
+enum RolUsuario {
+  COMPRADOR
+  ADMINISTRADOR
+}
+
+model Publicacion {
+  id_publicacion   Int      @id @default(autoincrement())
+  creador_id       Int
+  creador          Usuario  @relation(fields: [creador_id], references: [id_usuario])
+  titulo           String   @db.VarChar(150)
+  descripcion      String   @db.Text
+  url_origen       String   @db.Text
+  imagen_url       String?  @db.Text
+  precio_unitario  Decimal  @db.Decimal(10,2)
+  precio_mayoreo   Decimal  @db.Decimal(10,2)
+  meta_unidades    Int
+  fecha_limite     DateTime
+  estado           EstadoPublicacion @default(ACTIVA)
+  
+  participaciones  Participacion[]
+  mensajes         Mensaje[]
+  posts_coordinacion CoordinationPost[]
+}
+
+enum EstadoPublicacion {
+  ACTIVA
+  META_ALCANZADA
+  CANCELADA
+}
+
+model Participacion {
+  id_participacion Int      @id @default(autoincrement())
+  usuario_id       Int
+  usuario          Usuario  @relation(fields: [usuario_id], references: [id_usuario], onDelete: Cascade)
+  publicacion_id   Int
+  publicacion      Publicacion @relation(fields: [publicacion_id], references: [id_publicacion], onDelete: Cascade)
+  cantidad         Int
+  estado           EstadoParticipacion @default(PENDING)
+  fecha_solicitud  DateTime @default(now())
+  fecha_aprobacion DateTime?
+  
+  comentarios      CoordinationComment[]
+}
+
+enum EstadoParticipacion {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Mensaje {
+  id_mensaje       Int      @id @default(autoincrement())
+  publicacion_id   Int
+  publicacion      Publicacion @relation(fields: [publicacion_id], references: [id_publicacion], onDelete: Cascade)
+  usuario_id       Int
+  usuario          Usuario  @relation(fields: [usuario_id], references: [id_usuario], onDelete: Cascade)
+  contenido        String   @db.Text
+  fecha_envio      DateTime @default(now())
+}
+
+model CoordinationPost {
+  id_post          Int      @id @default(autoincrement())
+  publicacion_id   Int
+  publicacion      Publicacion @relation(fields: [publicacion_id], references: [id_publicacion], onDelete: Cascade)
+  autor_id         Int
+  autor            Usuario  @relation(fields: [autor_id], references: [id_usuario], onDelete: Cascade, name: "usuario_posts")
+  titulo           String   @db.VarChar(200)
+  contenido        String   @db.Text
+  tipo             TipoPost @default(GENERAL)
+  fecha_creacion   DateTime @default(now())
+  
+  comentarios      CoordinationComment[]
+}
+
+enum TipoPost {
+  GENERAL
+  UBICACION
+  PAGO
+  ACUERDO
+  ANUNCIO
+}
+
+model CoordinationComment {
+  id_comentario    Int      @id @default(autoincrement())
+  post_id          Int
+  post             CoordinationPost @relation(fields: [post_id], references: [id_post], onDelete: Cascade)
+  autor_id         Int
+  autor            Usuario  @relation(fields: [autor_id], references: [id_usuario], onDelete: Cascade, name: "usuario_comentarios")
+  participacion_id Int?
+  participacion    Participacion? @relation(fields: [participacion_id], references: [id_participacion], onDelete: SetNull)
+  contenido        String   @db.Text
+  fecha_creacion   DateTime @default(now())
+}
+
+model Review {
+  id_resena        Int      @id @default(autoincrement())
+  resena_de_id     Int
+  resena_de        Usuario  @relation(fields: [resena_de_id], references: [id_usuario], onDelete: Cascade, name: "resenas_dadas")
+  resena_a_id      Int
+  resena_a         Usuario  @relation(fields: [resena_a_id], references: [id_usuario], onDelete: Cascade, name: "resenas_recibidas")
+  calificacion     Int      @db.TinyInt
+  comentario       String?  @db.Text
+  fecha_creacion   DateTime @default(now())
+}
+
+model Report {
+  id_reporte       Int      @id @default(autoincrement())
+  reportero_id     Int
+  reportero        Usuario  @relation(fields: [reportero_id], references: [id_usuario], onDelete: Cascade, name: "reportes_hechos")
+  reportado_id     Int
+  reportado        Usuario  @relation(fields: [reportado_id], references: [id_usuario], onDelete: Cascade, name: "reportes_recibidos")
+  razon            String   @db.VarChar(100)
+  descripcion      String?  @db.Text
+  estado           EstadoReporte @default(PENDIENTE)
+  fecha_reporte    DateTime @default(now())
+}
+
+enum EstadoReporte {
+  PENDIENTE
+  REVISADO
+  RESUELTO
+}
