@@ -10,10 +10,11 @@ import { crearResena } from "@/app/actions/reputacion";
 interface WriteReviewButtonProps {
   usuarioId: number;
   usuarioNombre: string;
+  publicacionId?: number;
   onSuccess?: () => void;
 }
 
-export function WriteReviewButton({ usuarioId, usuarioNombre, onSuccess }: WriteReviewButtonProps) {
+export function WriteReviewButton({ usuarioId, usuarioNombre, publicacionId, onSuccess }: WriteReviewButtonProps) {
   const [abierto, setAbierto] = useState(false);
   const [calificacion, setCalificacion] = useState(0);
   const [hover, setHover] = useState(0);
@@ -32,6 +33,9 @@ export function WriteReviewButton({ usuarioId, usuarioNombre, onSuccess }: Write
       formData.append("resena_a_id", usuarioId.toString());
       formData.append("calificacion", calificacion.toString());
       formData.append("comentario", comentario);
+      if (publicacionId) {
+        formData.append("publicacion_id", publicacionId.toString());
+      }
 
       const result = await crearResena(formData);
       if (result.success) {

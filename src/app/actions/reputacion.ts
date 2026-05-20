@@ -10,6 +10,7 @@ const ReviewSchema = z.object({
   resena_a_id: z.coerce.number().int().positive(),
   calificacion: z.coerce.number().int().min(1).max(5),
   comentario: z.string().optional(),
+  publicacion_id: z.coerce.number().int().positive().optional(),
 });
 
 const ReportSchema = z.object({
@@ -49,22 +50,32 @@ export async function crearResena(formData: FormData) {
       return { error: "El usuario no existe" };
     }
 
-    // Check if review already exists
-    const existente = await prisma.review.findFirst({
-      where: {
-        resena_de_id: resenaDeId,
-        resena_a_id: data.resena_a_id,
-      },
-    });
+    // Check if review already exists (per publication if specified)
+    const existente = data.publicacion_id
+      ? await prisma.review.findFirst({
+          where: {
+            resena_de_id: resenaDeId,
+            resena_a_id: data.resena_a_id,
+            publicacion_id: data.publicacion_id,
+          },
+        })
+      : await prisma.review.findFirst({
+          where: {
+            resena_de_id: resenaDeId,
+            resena_a_id: data.resena_a_id,
+            publicacion_id: null,
+          },
+        });
 
     if (existente) {
-      return { error: "Ya has reseñado a este usuario" };
+      return { error: "Ya has reseñado a este usuario en esta compra" };
     }
 
     await prisma.review.create({
       data: {
         resena_de_id: resenaDeId,
         resena_a_id: data.resena_a_id,
+        publicacion_id: data.publicacion_id,
         calificacion: data.calificacion,
         comentario: data.comentario,
       },

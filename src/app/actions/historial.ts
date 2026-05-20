@@ -27,7 +27,7 @@ export async function obtenerHistorialCompras() {
             fecha_limite: true,
             meta_unidades: true,
             creador: {
-              select: { nombre: true, localidad: true },
+              select: { id_usuario: true, nombre: true, localidad: true },
             },
           },
         },
@@ -48,7 +48,7 @@ export async function obtenerHistorialCompras() {
       (p: any) => p.estado === "APPROVED" && p.publicacion.estado === "ACTIVA"
     );
     const comprasCompletadas = participacionesPlanas.filter(
-      (p: any) => p.estado === "APPROVED" && p.publicacion.estado === "META_ALCANZADA"
+      (p: any) => p.estado === "APPROVED" && (p.publicacion.estado === "META_ALCANZADA" || p.publicacion.estado === "COMPLETADA")
     );
     const comprasPendientes = participacionesPlanas.filter((p: any) => p.estado === "PENDING");
 

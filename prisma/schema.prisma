@@ -59,11 +59,13 @@ model Publicacion {
   participaciones    Participacion[]
   mensajes           Mensaje[]
   posts_coordinacion CoordinationPost[]
+  resenas            Review[]
 }
 
 enum EstadoPublicacion {
   ACTIVA
   META_ALCANZADA
+  COMPLETADA
   CANCELADA
 }
 
@@ -132,14 +134,16 @@ model CoordinationComment {
 }
 
 model Review {
-  id_resena      Int      @id @default(autoincrement())
+  id_resena      Int          @id @default(autoincrement())
   resena_de_id   Int
-  resena_de      Usuario  @relation(fields: [resena_de_id], references: [id_usuario], onDelete: Cascade, name: "resenas_dadas")
+  resena_de      Usuario      @relation(fields: [resena_de_id], references: [id_usuario], onDelete: Cascade, name: "resenas_dadas")
   resena_a_id    Int
-  resena_a       Usuario  @relation(fields: [resena_a_id], references: [id_usuario], onDelete: Cascade, name: "resenas_recibidas")
-  calificacion   Int      @default(5)
-  comentario     String?  @db.Text
-  fecha_creacion DateTime @default(now())
+  resena_a       Usuario      @relation(fields: [resena_a_id], references: [id_usuario], onDelete: Cascade, name: "resenas_recibidas")
+  publicacion_id Int?
+  publicacion    Publicacion? @relation(fields: [publicacion_id], references: [id_publicacion], onDelete: SetNull)
+  calificacion   Int          @default(5)
+  comentario     String?      @db.Text
+  fecha_creacion DateTime     @default(now())
 }
 
 model Report {

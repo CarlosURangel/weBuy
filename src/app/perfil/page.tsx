@@ -241,8 +241,8 @@ export default function PerfilPage() {
                           <div>
                             <div className="flex items-center gap-3 mb-2">
                               <h3 className="font-bold text-lg text-foreground">{pub.titulo}</h3>
-                              <Badge variant={pub.estado === "ACTIVA" ? "success" : "accent"}>
-                                {pub.estado === "ACTIVA" ? "Activa" : "Meta Alcanzada"}
+                              <Badge variant={pub.estado === "ACTIVA" ? "success" : pub.estado === "COMPLETADA" ? "accent" : "secondary"}>
+                                {pub.estado === "ACTIVA" ? "Activa" : pub.estado === "COMPLETADA" ? "Completada" : pub.estado === "CANCELADA" ? "Cancelada" : "Meta Alcanzada"}
                               </Badge>
                             </div>
                             <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -357,6 +357,7 @@ function CompraCard({ part, estadoBadge, badgeVariant }: { part: any; estadoBadg
           <WriteReviewButton
             usuarioId={part.publicacion.creador.id_usuario}
             usuarioNombre={part.publicacion.creador.nombre}
+            publicacionId={part.publicacion.id_publicacion}
           />
         </div>
       )}
