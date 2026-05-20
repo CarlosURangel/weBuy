@@ -12,6 +12,7 @@ export const config = {
   matcher: [
     "/perfil/:path*",
     "/crear-publicacion",
-    "/foro/:path*"
+    "/foro/:path*",
+    "/dashboard",
   ],
 };

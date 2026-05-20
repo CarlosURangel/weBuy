@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { crearPublicacion } from "@/app/actions/publicaciones";
 import { toast } from "sonner";
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,7 +30,7 @@ export default function CrearPublicacionPage() {
         toast.error(res.error);
       } else {
         toast.success("¡Publicación creada exitosamente!");
-        router.push("/");
+        router.push("/dashboard");
       }
     });
   };
@@ -40,6 +41,13 @@ export default function CrearPublicacionPage() {
       <div className="py-12 px-4 sm:px-6 lg:px-8 flex justify-center items-start">
         <div className="w-full max-w-3xl bg-card rounded-xl shadow-xl overflow-hidden border">
           <div className="bg-[#2D1340] text-white py-8 px-10">
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-1.5 text-sm text-gray-300 hover:text-white transition-colors mb-4"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Volver al inicio
+            </Link>
             <h1 className="text-3xl font-bold">Nueva Propuesta de Compra</h1>
             <p className="text-gray-300 mt-2 text-sm">
               Define el producto y la meta para que otros emprendedores se unan al ahorro.

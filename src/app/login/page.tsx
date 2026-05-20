@@ -1,16 +1,19 @@
 "use client";
 
+import { Suspense } from "react";
 import { signIn, getSession } from "next-auth/react";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") || undefined;
   const [correo, setCorreo] = useState("");
   const [contrasena, setContrasena] = useState("");
   const [error, setError] = useState("");
@@ -33,11 +36,7 @@ export default function LoginPage() {
       setIsLoading(false);
     } else {
       const session = await getSession();
-      if ((session?.user as any)?.rol === "ADMINISTRADOR") {
-        router.push("/admin/reportes");
-      } else {
-        router.push("/dashboard");
-      }
+      router.push(callbackUrl || ((session?.user as any)?.rol === "ADMINISTRADOR" ? "/admin/reportes" : "/dashboard"));
       router.refresh();
     }
   };
@@ -109,5 +108,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-black"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div></div>}>
+      <LoginForm />
+    </Suspense>
   );
 }
