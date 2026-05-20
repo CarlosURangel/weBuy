@@ -5,7 +5,7 @@ import { signIn, getSession } from "next-auth/react";
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Mail, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +19,7 @@ function LoginForm() {
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showForgotModal, setShowForgotModal] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,13 +101,47 @@ function LoginForm() {
             </Button>
 
             <div className="text-center mt-3">
-              <Link href="#" className="text-primary text-sm font-medium underline hover:text-primary/80 transition">
+              <button
+                type="button"
+                onClick={() => setShowForgotModal(true)}
+                className="text-primary text-sm font-medium underline hover:text-primary/80 transition cursor-pointer"
+              >
                 ¿Olvidaste tu contraseña?
-              </Link>
+              </button>
             </div>
           </form>
         </div>
       </div>
+
+      {showForgotModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-sm mx-4 p-6 relative">
+            <button
+              type="button"
+              onClick={() => setShowForgotModal(false)}
+              className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 transition-colors"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="flex flex-col items-center text-center">
+              <div className="w-14 h-14 bg-purple-100 rounded-full flex items-center justify-center mb-4">
+                <Mail className="w-7 h-7 text-purple-600" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Contacta con soporte</h3>
+              <p className="text-sm text-gray-500 mb-4">
+                Ponte en contacto con nosotros para recuperar tu contraseña:
+              </p>
+              <a
+                href="mailto:webuy.support@gmail.com"
+                className="text-purple-600 font-semibold text-base hover:text-purple-700 transition-colors"
+              >
+                webuy.support@gmail.com
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
